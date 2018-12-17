@@ -4,9 +4,9 @@ Première étape du projet de pesé
 
 ## Étape 1 
 
-1. Salut C,est pour un test
+1. Salut c'est pour un test
     
-2. Decription des 
+2. Decription des étapes nécessaires
    
      
 ### W.I.P
