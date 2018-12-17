@@ -1,6 +1,6 @@
-# PROJET IoT de pesé
+# PROJET IoT de pesée
 
-Première étape du projet de pesé
+Première étape du projet de pesée
 
 ## Étape 1 
 
