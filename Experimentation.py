@@ -3,14 +3,26 @@
 # Date:    2018-11-11
 # Par:     SGu
 #
-from gpiozero import *
+from gpiozero import LED, Button
+
 import RPi.GPIO as GPIO
 
 import time
 
+#
+# ID des GPIO pour LED
+#
 CONST_NO_GPIO_RED_LED = 18
 CONST_NO_GPIO_BLUE_LED = 17
 CONST_NO_GPIO_GREEN_LED = 27
+
+#
+# ID des GPIO pour bouton
+#
+CONST_NO_GPIO_BUTTON_1 = 2
+#lst_button=[]
+#lst_button.append(Button(CONST_NO_GPIO_BUTTON_1))
+#button=Button(CONST_NO_GPIO_BUTTON_1)
 
 #
 # Construit un tableau des lumières dans l'ordre
@@ -21,12 +33,13 @@ lst_LED.append(LED(CONST_NO_GPIO_RED_LED))
 lst_LED.append(LED(CONST_NO_GPIO_BLUE_LED))
 lst_LED.append(LED(CONST_NO_GPIO_GREEN_LED))
 
-
+    
 #####
 #  Mode d'affichage pour flasher les lumières
 #####
 CONST_MODE_FLASH=1
 CONST_DELAI_LUMIERE_SECONDE= 0.2
+
 
 #####
 #  Signale aux humains ton état en faisant un
@@ -42,15 +55,38 @@ CONST_DELAI_LUMIERE_SECONDE= 0.2
 def flash_led(lst_LED_A, mode_flash, interval):
 
     CONST_NBR_TOUR=1
+ #   CONST_TOLERANCE_INTERVAL=0.003
+     # Tolérance est à 1% de la différence min et max délai de seconde
+    CONST_TOLERANCE_INTERVAL = 0.01*(CONST_INTERVAL_MAXIMUM_SEC - CONST_INTERVAL_MINIMUM_SEC)
+    borneMin = CONST_INTERVAL_MINIMUM_SEC + CONST_TOLERANCE_INTERVAL
+    borneMax = CONST_INTERVAL_MAXIMUM_SEC - CONST_TOLERANCE_INTERVAL
     
-    #Boucle dans le tableau de LED et allume et éteint
-    for i in range(1,CONST_NBR_TOUR+1):   
-        for LED in lst_LED_A:
-            LED.on()
-            time.sleep(interval)
-            LED.off()
-        i=i+1
-
+    
+    if interval > borneMin and interval < borneMax:
+        # Intérieur des bornes alors Boucle dans le tableau de LED et allume et éteint en boucle les LED 
+        for i in range(1,CONST_NBR_TOUR+1):   
+            for LED in lst_LED_A:
+                LED.on()
+                time.sleep(interval)
+                LED.off()
+            i=i+1
+    elif interval <= borneMin:
+        #Interval trop petit alors flash le premier LED à la fréquence par défaut        
+        lst_LED_A[0].on()
+        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
+        lst_LED_A[0].off()
+        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
+        
+    elif interval >= borneMax:
+        #Interval trop grand alors flash le dernier LED à la fréquence par défaut
+        print ("Interval trop grand %s" % interval)
+        lst_LED_A[-1].on()
+        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
+        lst_LED_A[-1].off()
+        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
+    else:
+         #Problème non prévu et condition normalement impossible
+         print ("Condition impossible: pas possible de flasher")
 
     #for LED in lst_LED:
      #   print(str(LED.Closed))
@@ -164,21 +200,30 @@ GPIO.setup(SPICS, GPIO.OUT)
 adcnum = 0
 interval = CONST_DELAI_LUMIERE_SECONDE
 
-CONST_VALEUR_MAXIMUM_GRADATEUR = 1024
+CONST_VALEUR_MAXIMUM_GRADATEUR = 1023.5
 CONST_VALEUR_MINIMUM_GRADATEUR = 0
 CONST_INTERVAL_MAXIMUM_SEC = 0.7
 CONST_INTERVAL_MINIMUM_SEC = 0.07
 
 CONST_FCT_CONVERSION= (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR)
+print("Facteur de conversion: %s" % CONST_FCT_CONVERSION)
 
-while interval > CONST_INTERVAL_MINIMUM_SEC:
+# Fait flasher les lumières pour initialiser
+flash_led(lst_LED, CONST_MODE_FLASH, interval)
+
+# Attend le go du piton
+#lst_button[0].wait_for_press()
+
+
+#while interval > CONST_INTERVAL_MINIMUM_SEC:
+while 1==1:
     # Lecture de la valeur brute du capteur
     read_adc0 = readADC(adcnum, SPICLK, SPIMOSI, SPIMISO, SPICS)
 
     if read_adc0 == -1 :
         print("\tUne erreur c'est produite")
-    elif read_adc0 < CONST_VALEUR_MINIMUM_GRADATEUR:
         interval = CONST_INTERVAL_MINIMUM_SEC -1  ## pour arrêter la boucle
+      
     else:
         # conversion de la valeur brute lue en milivolts = ADC * ( 3300 / 1024 )
         # millivolts = read_adc0 * ( 3300.0 / 1024.0)
@@ -186,15 +231,17 @@ while interval > CONST_INTERVAL_MINIMUM_SEC:
         
         interval_prec= interval
 
-        interval = read_adc0 * CONST_FCT_CONVERSION 
 
+        interval = ((read_adc0-CONST_VALEUR_MINIMUM_GRADATEUR)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR) * (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC))+CONST_INTERVAL_MINIMUM_SEC
+        #interval = read_adc0 * CONST_FCT_CONVERSION 
+        #Affiche des résultats seulement s'il y a un changement
         if interval != interval_prec:
             print("\tValeur brute : %s" % read_adc0)
             print("\tIntervale: %s" % interval)
 
-        if interval > 0 :
-            # Fait flasher les lumières à la vitesse ajustée
-            flash_led(lst_LED, CONST_MODE_FLASH, interval)
+        # Fait flasher les lumières à la vitesse ajustée 
+        flash_led(lst_LED, CONST_MODE_FLASH, interval)
+            
         
 print("Fin du programme \n")
 print("\tValeur brute : %s" % read_adc0)
