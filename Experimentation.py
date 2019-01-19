@@ -6,8 +6,11 @@
 from gpiozero import LED, Button
 from time import gmtime, strftime
 
+import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 import time
+
+BROKER_ADRESSE = "192.168.1.148" #Adresse du serveur MQTT, TODO faire une fonction pour get IP Local
 
 #
 # ID des GPIO pour LED
@@ -15,6 +18,12 @@ import time
 CONST_NO_GPIO_RED_LED = 18
 CONST_NO_GPIO_BLUE_LED = 17
 CONST_NO_GPIO_GREEN_LED = 27
+
+#
+# Initialisation du client
+#
+client = mqtt.Client("mesureResidu") 
+client.connect(BROKER_ADRESSE) 
 
 #
 # ID des GPIO pour bouton
@@ -251,8 +260,7 @@ while 1==1:
         if interval != interval_prec:
             print("\tValeur brute : %s" % read_adc0)
             print("\tIntervale: %s" % interval)
-            
-        print(getTime("patateBleue"))
+            client.publish("escouadeVerte","\tIntervale: %s" % interval)           
 
         # Fait flasher les lumières à la vitesse ajustée
         
