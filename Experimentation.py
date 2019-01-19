@@ -4,9 +4,9 @@
 # Par:     SGu
 #
 from gpiozero import LED, Button
+from time import gmtime, strftime
 
 import RPi.GPIO as GPIO
-
 import time
 
 #
@@ -39,6 +39,20 @@ lst_LED.append(LED(CONST_NO_GPIO_GREEN_LED))
 #####
 CONST_MODE_FLASH=1
 CONST_DELAI_LUMIERE_SECONDE= 0.2
+
+#####
+#  Récupère la date et l'heure actuelles en format Greenwitch, retourne un string.
+#####
+def getTime(localTime = False) :   
+    
+    if localTime == True:
+        actTime = strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime(time.time()))
+    else:
+        actTime = strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime(time.time()))
+    
+    return actTime
+
+
 
 
 #####
@@ -79,14 +93,13 @@ def flash_led(lst_LED_A, mode_flash, interval):
         
     elif interval >= borneMax:
         #Interval trop grand alors flash le dernier LED à la fréquence par défaut
-        print ("Interval trop grand %s" % interval)
         lst_LED_A[-1].on()
         time.sleep(CONST_DELAI_LUMIERE_SECONDE)
         lst_LED_A[-1].off()
         time.sleep(CONST_DELAI_LUMIERE_SECONDE)
     else:
          #Problème non prévu et condition normalement impossible
-         print ("Condition impossible: pas possible de flasher")
+         print ("Condition impossible: impossible de flasher")
 
     #for LED in lst_LED:
      #   print(str(LED.Closed))
@@ -229,7 +242,7 @@ while 1==1:
         # millivolts = read_adc0 * ( 3300.0 / 1024.0)
         # print("\tTension : %s millivolts" % millivolts)
         
-        interval_prec= interval
+        interval_prec = interval
 
 
         interval = ((read_adc0-CONST_VALEUR_MINIMUM_GRADATEUR)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR) * (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC))+CONST_INTERVAL_MINIMUM_SEC
@@ -238,8 +251,11 @@ while 1==1:
         if interval != interval_prec:
             print("\tValeur brute : %s" % read_adc0)
             print("\tIntervale: %s" % interval)
+            
+        print(getTime("patateBleue"))
 
-        # Fait flasher les lumières à la vitesse ajustée 
+        # Fait flasher les lumières à la vitesse ajustée
+        
         flash_led(lst_LED, CONST_MODE_FLASH, interval)
             
         
