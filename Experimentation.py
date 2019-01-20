@@ -9,8 +9,20 @@ from time import gmtime, strftime
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 import time
+import json
 
-BROKER_ADRESSE = "192.168.1.148" #Adresse du serveur MQTT, TODO faire une fonction pour get IP Local
+
+#####
+#  Déclaration des paramètre pour communication dans le serveur MQTT
+#
+#####
+# BROKER_ADRESSE = "192.168.1.148" #Adresse du serveur MQTT, TODO faire une fonction pour get IP Local
+BROKER_ADRESSE = "demo.thingsboard.io"    # Adresse du serveur MQTT pour faire démonstration avec service live de thingsboard
+TOPIC = "v1/devices/me/telemetry"         # L'identifiant du channel de communication
+access_token = "escouadeVerte"            # L'acces token fournit par le serveur MQTT associé au channel
+password=""
+
+data=dict()                               # Déclare l'objet tableau associatif clé --> valeur
 
 #
 # ID des GPIO pour LED
@@ -20,10 +32,11 @@ CONST_NO_GPIO_BLUE_LED = 17
 CONST_NO_GPIO_GREEN_LED = 27
 
 #
-# Initialisation du client
+# Initialisation du client MQTT
 #
-client = mqtt.Client("mesureResidu") 
-client.connect(BROKER_ADRESSE) 
+client = mqtt.Client("Pi-Residu")               # L'identifiant du client
+client.username_pw_set(access_token, password)
+client.connect(BROKER_ADRESSE)
 
 #
 # ID des GPIO pour bouton
@@ -237,6 +250,7 @@ flash_led(lst_LED, CONST_MODE_FLASH, interval)
 #lst_button[0].wait_for_press()
 
 
+
 #while interval > CONST_INTERVAL_MINIMUM_SEC:
 while 1==1:
     # Lecture de la valeur brute du capteur
@@ -257,10 +271,18 @@ while 1==1:
         interval = ((read_adc0-CONST_VALEUR_MINIMUM_GRADATEUR)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR) * (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC))+CONST_INTERVAL_MINIMUM_SEC
         #interval = read_adc0 * CONST_FCT_CONVERSION 
         #Affiche des résultats seulement s'il y a un changement
+        
+        
         if interval != interval_prec:
+            #  Construire le JSON à publier
+            data["Valeur"]=read_adc0
+            data_out=json.dumps(data)
+            print("\t##### ")
+            print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
+            
             print("\tValeur brute : %s" % read_adc0)
             print("\tIntervale: %s" % interval)
-            client.publish("escouadeVerte","\tIntervale: %s" % interval)           
+            
 
         # Fait flasher les lumières à la vitesse ajustée
         
