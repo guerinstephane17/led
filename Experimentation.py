@@ -4,15 +4,15 @@
 # Par:     SGu
 #
 from gpiozero import LED, Button
-from time import gmtime, strftime
+from time import gmtime, strftime, time, sleep
 
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
-import time
+#import time
 import json
 
 
-#####
+####
 #  Déclaration des paramètre pour communication dans le serveur MQTT
 #
 #####
@@ -22,14 +22,8 @@ TOPIC = "v1/devices/me/telemetry"         # L'identifiant du channel de communic
 access_token = "escouadeVerte"            # L'acces token fournit par le serveur MQTT associé au channel
 password=""
 
-data=dict()                               # Déclare l'objet tableau associatif clé --> valeur
-
-#
-# ID des GPIO pour LED
-#
-CONST_NO_GPIO_RED_LED = 18
-CONST_NO_GPIO_BLUE_LED = 17
-CONST_NO_GPIO_GREEN_LED = 27
+data=dict()                               # Déclare l'objet tableau associatif clé --> valeur pour générer
+                                          #   la structure json
 
 #
 # Initialisation du client MQTT
@@ -39,6 +33,10 @@ client.username_pw_set(access_token, password)
 client.connect(BROKER_ADRESSE)
 
 #
+#####
+
+#####
+#  Définition des boutons
 # ID des GPIO pour bouton
 #
 CONST_NO_GPIO_BUTTON_1 = 2
@@ -46,21 +44,6 @@ CONST_NO_GPIO_BUTTON_1 = 2
 #lst_button.append(Button(CONST_NO_GPIO_BUTTON_1))
 #button=Button(CONST_NO_GPIO_BUTTON_1)
 
-#
-# Construit un tableau des lumières dans l'ordre
-# préféré d'affichage
-#
-lst_LED=[]
-lst_LED.append(LED(CONST_NO_GPIO_RED_LED))
-lst_LED.append(LED(CONST_NO_GPIO_BLUE_LED))
-lst_LED.append(LED(CONST_NO_GPIO_GREEN_LED))
-
-    
-#####
-#  Mode d'affichage pour flasher les lumières
-#####
-CONST_MODE_FLASH=1
-CONST_DELAI_LUMIERE_SECONDE= 0.2
 
 #####
 #  Récupère la date et l'heure actuelles en format Greenwitch, retourne un string.
@@ -75,59 +58,6 @@ def getTime(localTime = False) :
     return actTime
 
 
-
-
-#####
-#  Signale aux humains ton état en faisant un
-#  truc visuel avec les LED
-#
-#   lst_LED_A: une liste de tableau de LED
-#   mode_flash: une valeur sur le patern de flash
-#
-#   2do: Intégrer une gestion des erreurs, vérifier les paramètres
-#
-#####
-
-def flash_led(lst_LED_A, mode_flash, interval):
-
-    CONST_NBR_TOUR=1
- #   CONST_TOLERANCE_INTERVAL=0.003
-     # Tolérance est à 1% de la différence min et max délai de seconde
-    CONST_TOLERANCE_INTERVAL = 0.01*(CONST_INTERVAL_MAXIMUM_SEC - CONST_INTERVAL_MINIMUM_SEC)
-    borneMin = CONST_INTERVAL_MINIMUM_SEC + CONST_TOLERANCE_INTERVAL
-    borneMax = CONST_INTERVAL_MAXIMUM_SEC - CONST_TOLERANCE_INTERVAL
-    
-    
-    if interval > borneMin and interval < borneMax:
-        # Intérieur des bornes alors Boucle dans le tableau de LED et allume et éteint en boucle les LED 
-        for i in range(1,CONST_NBR_TOUR+1):   
-            for LED in lst_LED_A:
-                LED.on()
-                time.sleep(interval)
-                LED.off()
-            i=i+1
-    elif interval <= borneMin:
-        #Interval trop petit alors flash le premier LED à la fréquence par défaut        
-        lst_LED_A[0].on()
-        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
-        lst_LED_A[0].off()
-        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
-        
-    elif interval >= borneMax:
-        #Interval trop grand alors flash le dernier LED à la fréquence par défaut
-        lst_LED_A[-1].on()
-        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
-        lst_LED_A[-1].off()
-        time.sleep(CONST_DELAI_LUMIERE_SECONDE)
-    else:
-         #Problème non prévu et condition normalement impossible
-         print ("Condition impossible: impossible de flasher")
-
-    #for LED in lst_LED:
-     #   print(str(LED.Closed))
-    
-    
-    return
 
 #####
 #  Outil pour lire le MCP3008 qui converti un signal analogique en numérique
@@ -231,9 +161,151 @@ GPIO.setup(SPICLK, GPIO.OUT)
 GPIO.setup(SPICS, GPIO.OUT)
 
 
-#definition du ADC utilise (broche du MCP3008). Cette valeur peut aller de 0 à 7.
-adcnum = 0
-interval = CONST_DELAI_LUMIERE_SECONDE
+#Definition du ADC utilise (broche du MCP3008). Cette valeur peut aller de 0 à 7.
+CONST_ADC_NOM_BALANCE_RESIDU="KG_RESIDU"
+CONST_ADC_PIN_BALANCE_RESIDU=0
+CONST_ADC_NOM_BALANCE_COMPOST="KG_COMPOST"
+CONST_ADC_PIN_BALANCE_COMPOST=1
+CONST_ADC_NOM_BALANCE_RECYCLAGE="KG_RECYCLAGE"
+CONST_ADC_PIN_BALANCE_RECYCLAGE=1
+
+
+# Construit un tableau des balances dans l'ordre
+#
+dict_BALANCE=dict()
+dict_BALANCE[CONST_ADC_NOM_BALANCE_RESIDU]=CONST_ADC_PIN_BALANCE_RESIDU
+dict_BALANCE[CONST_ADC_NOM_BALANCE_COMPOST]=CONST_ADC_PIN_BALANCE_COMPOST
+dict_BALANCE[CONST_ADC_NOM_BALANCE_RECYCLAGE]=CONST_ADC_PIN_BALANCE_RECYCLAGE
+
+
+#####
+#  Définition des LED
+#
+#      ID des GPIO pour LED
+#
+CONST_NO_GPIO_RED_LED = 18
+CONST_NO_GPIO_BLUE_LED = 17
+CONST_NO_GPIO_GREEN_LED = 27
+
+#
+# Construit un tableau des lumières dans l'ordre
+# préféré d'affichage
+#
+# Construit un tableau des LED avec les index des noms de balances
+#
+dict_LED=dict()
+dict_LED[CONST_ADC_NOM_BALANCE_RESIDU]=LED(CONST_NO_GPIO_RED_LED)
+dict_LED[CONST_ADC_NOM_BALANCE_COMPOST]=LED(CONST_NO_GPIO_GREEN_LED)
+dict_LED[CONST_ADC_NOM_BALANCE_RECYCLAGE]=LED(CONST_NO_GPIO_BLUE_LED)
+
+
+CONST_DELAI_LUMIERE_SECONDE= 0.2
+
+#####
+#  Signale aux humains ton état en faisant un
+#  truc visuel avec les LED
+#
+#   dict_Tous_LED: un dictionnaire de LED
+#   mode_flash: une valeur sur le patern de flash
+#
+#   2do: Intégrer une gestion des erreurs, vérifier les paramètres
+#
+#####
+
+#
+#  Mode d'affichage pour flasher les lumières
+#
+CONST_MODE_FLASH_INIT=1                          # Allume successivement toutes les LED dans l'ordre de la liste
+CONST_MODE_ALL_ON=2                              # Allume toutes les LED
+CONST_MODE_ALL_OFF=3                             # Éteint toutes les LED
+CONST_MODE_FLASH_ALL=4                           # Flash tous les LED en même temps
+CONST_MODE_FLASH_UNIQUE=5                        # Flash une fois la LED
+
+
+def flash_led(dict_Tous_LED, mode_flash, interval, led_a_clignote = CONST_ADC_NOM_BALANCE_RESIDU):
+    CONST_NBR_FLASH=3   # Nombre flash
+    CONST_NBR_TOUR=1    #
+    if mode_flash == CONST_MODE_FLASH_INIT:      
+         #   CONST_TOLERANCE_INTERVAL=0.003
+         # Tolérance est à 1% de la différence min et max délai de seconde
+        CONST_TOLERANCE_INTERVAL = 0.01*(CONST_INTERVAL_MAXIMUM_SEC - CONST_INTERVAL_MINIMUM_SEC)
+        borneMin = CONST_INTERVAL_MINIMUM_SEC + CONST_TOLERANCE_INTERVAL
+        borneMax = CONST_INTERVAL_MAXIMUM_SEC - CONST_TOLERANCE_INTERVAL
+        
+        
+        if interval > borneMin and interval < borneMax:
+            # Intérieur des bornes alors Boucle dans le tableau de LED et allume et éteint en boucle les LED 
+            for i in range(1,CONST_NBR_TOUR+1):   
+                for key in dict_Tous_LED:
+                    dict_Tous_LED[key].on()
+                    sleep(interval)
+                    dict_Tous_LED[key].off()
+                i=i+1
+        elif interval <= borneMin:
+            #Interval trop petit alors flash le premier LED à la fréquence par défaut        
+            dict_Tous_LED[0].on()
+            sleep(CONST_DELAI_LUMIERE_SECONDE)
+            dict_Tous_LED[0].off()
+            sleep(CONST_DELAI_LUMIERE_SECONDE)
+            
+        elif interval >= borneMax:
+            #Interval trop grand alors flash le dernier LED à la fréquence par défaut
+            dict_Tous_LED[-1].on()
+            sleep(CONST_DELAI_LUMIERE_SECONDE)
+            dict_Tous_LED[-1].off()
+            sleep(CONST_DELAI_LUMIERE_SECONDE)
+        else:
+             #Problème non prévu et condition normalement impossible
+             print ("Condition impossible: impossible de flasher")
+             
+    elif mode_flash == CONST_MODE_ALL_ON:
+        # Boucle dans le tableau de LED et allume tous les LED
+        for key in dict_Tous_LED:
+            dict_Tous_LED[key].on()
+        
+    elif mode_flash == CONST_MODE_ALL_OFF:
+        # Boucle dans le tableau de LED et allume tous les LED 
+        for key in dict_Tous_LED:
+            dict_Tous_LED[key].off()
+    
+    elif mode_flash == CONST_MODE_FLASH_ALL:
+        # Flash toutes les lumières en même temps
+        for key in dict_Tous_LED:
+            dict_Tous_LED[key].off()
+
+
+        for i in range(1,CONST_NBR_FLASH+1):   
+            for key in dict_Tous_LED:
+                dict_Tous_LED[key].on()
+            sleep(interval)
+            for key in dict_Tous_LED:
+                dict_Tous_LED[key].off()
+            i=i+1
+            
+    elif mode_flash == CONST_MODE_FLASH_UNIQUE:
+        # Flash une seule lumière
+        for i in range(1,CONST_NBR_FLASH+1):   
+            dict_Tous_LED[led_a_clignote].on()
+            sleep(interval)
+            dict_Tous_LED[led_a_clignote].off()
+            i=i+1
+
+    else:  # Type de flasher inconnu
+            #Problème non prévu et condition normalement impossible
+            print ("Mode de impossible de flasher")
+          
+ 
+    
+    return
+
+
+
+
+#####
+#  Définition pour simuler la balance avec des gradateurs
+#
+#
+interval = CONST_DELAI_LUMIERE_SECONDE         # Fixe la valeur initiale pour rythme d'affichage des LED
 
 CONST_VALEUR_MAXIMUM_GRADATEUR = 1023.5
 CONST_VALEUR_MINIMUM_GRADATEUR = 0
@@ -243,50 +315,87 @@ CONST_INTERVAL_MINIMUM_SEC = 0.07
 CONST_FCT_CONVERSION= (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR)
 print("Facteur de conversion: %s" % CONST_FCT_CONVERSION)
 
-# Fait flasher les lumières pour initialiser
-flash_led(lst_LED, CONST_MODE_FLASH, interval)
+#   Fin des paramètres de simulation
+#####
 
+print("dict_LED= %s " % dict_LED)
+print("dict_Balance= %s " % dict_BALANCE)
+
+
+# Fait flasher les lumières pour initialiser, attirer l'attention et faire une rétroaction personne-machine
+flash_led(dict_LED, CONST_MODE_FLASH_INIT, CONST_DELAI_LUMIERE_SECONDE)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_ALL_ON, CONST_DELAI_LUMIERE_SECONDE)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_ALL_OFF, CONST_DELAI_LUMIERE_SECONDE)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_FLASH_ALL, CONST_DELAI_LUMIERE_SECONDE)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE,CONST_ADC_NOM_BALANCE_RESIDU)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE,CONST_ADC_NOM_BALANCE_COMPOST)
+sleep(3)
+flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE,CONST_ADC_NOM_BALANCE_RECYCLAGE)
+sleep(3)
 # Attend le go du piton
 #lst_button[0].wait_for_press()
 
 
 
-#while interval > CONST_INTERVAL_MINIMUM_SEC:
-while 1==1:
-    # Lecture de la valeur brute du capteur
-    read_adc0 = readADC(adcnum, SPICLK, SPIMOSI, SPIMISO, SPICS)
 
-    if read_adc0 == -1 :
-        print("\tUne erreur c'est produite")
-        interval = CONST_INTERVAL_MINIMUM_SEC -1  ## pour arrêter la boucle
+    
+#print("\tListe des balances: %s" % dict_BALANCE[1])
+
+#while interval > CONST_INTERVAL_MINIMUM_SEC:
+
+while 1==1:
+    for key in dict_BALANCE.keys():
+        # Lecture de la valeur des balances
+        flash_led(dict_LED, CONST_MODE_FLASH_INIT, CONST_DELAI_LUMIERE_SECONDE,key)
+        data[key]=readADC(dict_BALANCE[key], SPICLK, SPIMOSI, SPIMISO, SPICS)
+        
+    ### Pour simuler tester une troisième balance on augmente la lecture de 28%
+    data[CONST_ADC_NOM_BALANCE_RECYCLAGE]=data[key]*1.28
+        
+    print("\tValeurs du tableau data: %s " % data)
+    
+    data_out=json.dumps(data)       # Converti en jason le data pour publier sur le serveur
+    print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
+
+    # Fait flasher les lumières à la vitesse ajustée pour faire comprendre que le programme fonctionne    
+    #flash_led(dict_LED, CONST_MODE_FLASH_INIT, interval)
+
+    #if read_adc0 == -1 :
+    #    print("\tUne erreur c'est produite")
+    #    interval = CONST_INTERVAL_MINIMUM_SEC -1  ## pour arrêter la boucle
       
-    else:
+    #else:
         # conversion de la valeur brute lue en milivolts = ADC * ( 3300 / 1024 )
         # millivolts = read_adc0 * ( 3300.0 / 1024.0)
         # print("\tTension : %s millivolts" % millivolts)
         
-        interval_prec = interval
+        
+        #####
+        #  Pour simuler une activité et informer l'humain pendant le débogage
+        #    accélère ou décélère le rythme d'affichage des lumières en fct du gradateur
+        #
+     #   interval_prec = interval
+     #   interval = ((read_adc0-CONST_VALEUR_MINIMUM_GRADATEUR)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR) * (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC))+CONST_INTERVAL_MINIMUM_SEC
 
 
-        interval = ((read_adc0-CONST_VALEUR_MINIMUM_GRADATEUR)/(CONST_VALEUR_MAXIMUM_GRADATEUR-CONST_VALEUR_MINIMUM_GRADATEUR) * (CONST_INTERVAL_MAXIMUM_SEC-CONST_INTERVAL_MINIMUM_SEC))+CONST_INTERVAL_MINIMUM_SEC
-        #interval = read_adc0 * CONST_FCT_CONVERSION 
-        #Affiche des résultats seulement s'il y a un changement
-        
-        
-        if interval != interval_prec:
+        #Affiche des résultats seulement s'il y a un changement       
+    #  if interval != interval_prec:
             #  Construire le JSON à publier
-            data["Valeur"]=read_adc0
-            data_out=json.dumps(data)
-            print("\t##### ")
-            print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
+    #        data_out=json.dumps(data)
+    #        print("\t##### ")
+    #        print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
             
-            print("\tValeur brute : %s" % read_adc0)
-            print("\tIntervale: %s" % interval)
+    #        print("\tValeur brute : %s" % read_adc0)
+    #        print("\tIntervale: %s" % interval)
             
 
-        # Fait flasher les lumières à la vitesse ajustée
-        
-        flash_led(lst_LED, CONST_MODE_FLASH, interval)
             
         
 print("Fin du programme \n")
