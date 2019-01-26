@@ -8,7 +8,6 @@ from time import gmtime, strftime, time, sleep
 
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
-#import time
 import json
 
 
@@ -25,6 +24,18 @@ password=""
 data=dict()                               # Déclare l'objet tableau associatif clé --> valeur pour générer
                                           #   la structure json
 
+
+#####
+#
+#    Récupère la communication avec le serveur
+#
+#####
+def saveMQTTConnection(mqttConnection):
+    
+    mqttConnection.reconnect()
+    
+    return 
+
 #
 # Initialisation du client MQTT
 #
@@ -35,18 +46,13 @@ client.connect(BROKER_ADRESSE)
 #
 #####
 
-#####
-#  Définition des boutons
-# ID des GPIO pour bouton
-#
-CONST_NO_GPIO_BUTTON_1 = 2
-#lst_button=[]
-#lst_button.append(Button(CONST_NO_GPIO_BUTTON_1))
-#button=Button(CONST_NO_GPIO_BUTTON_1)
-
 
 #####
 #  Récupère la date et l'heure actuelles en format Greenwitch, retourne un string.
+#
+#  localTime :  Vrai = Retourne l'heure GMT
+#               Faux = [valeur par défaut] Retourne l'heure locale configurée dans le système d'exploitation
+#
 #####
 def getTime(localTime = False) :   
     
@@ -160,8 +166,10 @@ GPIO.setup(SPIMISO, GPIO.IN)
 GPIO.setup(SPICLK, GPIO.OUT)
 GPIO.setup(SPICS, GPIO.OUT)
 
-
-#Definition du ADC utilise (broche du MCP3008). Cette valeur peut aller de 0 à 7.
+#
+#Définition du ADC utilise (broche du MCP3008). Cette valeur peut aller de 0 à 7
+# sous forme d'une structure dictionnaire [Nom]:[PIN]
+#
 CONST_ADC_NOM_BALANCE_RESIDU="KG_RESIDU"
 CONST_ADC_PIN_BALANCE_RESIDU=0
 CONST_ADC_NOM_BALANCE_COMPOST="KG_COMPOST"
@@ -169,8 +177,8 @@ CONST_ADC_PIN_BALANCE_COMPOST=1
 CONST_ADC_NOM_BALANCE_RECYCLAGE="KG_RECYCLAGE"
 CONST_ADC_PIN_BALANCE_RECYCLAGE=1
 
-
-# Construit un tableau des balances dans l'ordre
+#
+# Construit un tableau associatif des balances dans l'ordre souhaité
 #
 dict_BALANCE=dict()
 dict_BALANCE[CONST_ADC_NOM_BALANCE_RESIDU]=CONST_ADC_PIN_BALANCE_RESIDU
@@ -191,7 +199,8 @@ CONST_NO_GPIO_GREEN_LED = 27
 # Construit un tableau des lumières dans l'ordre
 # préféré d'affichage
 #
-# Construit un tableau des LED avec les index des noms de balances
+# Construit un tableau des LED avec les index des noms de balances pour
+#   permettre d'afficher une interaction personne-machine lors d'une lecture de la balance
 #
 dict_LED=dict()
 dict_LED[CONST_ADC_NOM_BALANCE_RESIDU]=LED(CONST_NO_GPIO_RED_LED)
@@ -222,7 +231,7 @@ CONST_MODE_FLASH_ALL=4                           # Flash tous les LED en même t
 CONST_MODE_FLASH_UNIQUE=5                        # Flash une fois la LED
 
 
-def flash_led(dict_Tous_LED, mode_flash, interval, led_a_clignote = CONST_ADC_NOM_BALANCE_RESIDU):
+def flash_led(dict_Tous_LED, mode_flash, interval = CONST_DELAI_LUMIERE_SECONDE, led_a_clignote = CONST_ADC_NOM_BALANCE_RESIDU):
     CONST_NBR_FLASH=3   # Nombre flash
     CONST_NBR_TOUR=1    #
     if mode_flash == CONST_MODE_FLASH_INIT:      
@@ -299,6 +308,31 @@ def flash_led(dict_Tous_LED, mode_flash, interval, led_a_clignote = CONST_ADC_NO
     return
 
 
+#####
+#  Définition des boutons
+# ID des GPIO pour bouton
+#
+
+CONST_BTN_NOM_LECTURE = "Lecture"
+CONST_BTN_NO_GPIO_LECTURE = 2
+#
+# Construit un tableau des lumières dans l'ordre
+# préféré d'affichage
+#
+# Construit un tableau des LED avec les index des noms de balances pour
+#   permettre d'afficher une interaction personne-machine lors d'une lecture de la balance
+#
+dict_BTN=dict()
+dict_BTN[CONST_BTN_NOM_LECTURE]=Button(CONST_BTN_NO_GPIO_LECTURE)
+print("Liste des boutons: %s" % dict_BTN)
+
+#lst_button=[]
+#lst_button.append(Button(CONST_NO_GPIO_BUTTON_1))
+#button=Button(CONST_NO_GPIO_BUTTON_1)
+
+
+
+
 
 
 #####
@@ -323,37 +357,22 @@ print("dict_Balance= %s " % dict_BALANCE)
 
 
 # Fait flasher les lumières pour initialiser, attirer l'attention et faire une rétroaction personne-machine
-flash_led(dict_LED, CONST_MODE_FLASH_INIT, CONST_DELAI_LUMIERE_SECONDE)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_ALL_ON, CONST_DELAI_LUMIERE_SECONDE)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_ALL_OFF, CONST_DELAI_LUMIERE_SECONDE)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_FLASH_ALL, CONST_DELAI_LUMIERE_SECONDE)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE,CONST_ADC_NOM_BALANCE_RESIDU)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE,CONST_ADC_NOM_BALANCE_COMPOST)
-sleep(3)
-flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE, CONST_DELAI_LUMIERE_SECONDE,CONST_ADC_NOM_BALANCE_RECYCLAGE)
-sleep(3)
+flash_led(dict_LED, CONST_MODE_FLASH_INIT)
+
 # Attend le go du piton
 #lst_button[0].wait_for_press()
-
-
-
-
-    
+   
 #print("\tListe des balances: %s" % dict_BALANCE[1])
 
 #while interval > CONST_INTERVAL_MINIMUM_SEC:
 
-while 1==1:
+while True:
+    print("\tOn attend le bouton ;-)")
+    dict_BTN[CONST_BTN_NOM_LECTURE].wait_for_press()
+    
     for key in dict_BALANCE.keys():
         # Lecture de la valeur des balances
-        flash_led(dict_LED, CONST_MODE_FLASH_INIT, CONST_DELAI_LUMIERE_SECONDE,key)
+        flash_led(dict_LED, CONST_MODE_FLASH_UNIQUE,CONST_DELAI_LUMIERE_SECONDE,key)
         data[key]=readADC(dict_BALANCE[key], SPICLK, SPIMOSI, SPIMISO, SPICS)
         
     ### Pour simuler tester une troisième balance on augmente la lecture de 28%
@@ -362,10 +381,15 @@ while 1==1:
     print("\tValeurs du tableau data: %s " % data)
     
     data_out=json.dumps(data)       # Converti en jason le data pour publier sur le serveur
+    # Publie la lecture sur le serveur
+    
+    mqtt_retour = client.publish(TOPIC,data_out)
+    print("\tValeur de retour: %s" % mqtt_retour.rc)
+    #MQTT_ERR_SUCCESS
+    # Si erreur essai 5 fois avec un délai
+    # saveMQTTConnection(mqttConnection)
     print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
 
-    # Fait flasher les lumières à la vitesse ajustée pour faire comprendre que le programme fonctionne    
-    #flash_led(dict_LED, CONST_MODE_FLASH_INIT, interval)
 
     #if read_adc0 == -1 :
     #    print("\tUne erreur c'est produite")
@@ -399,8 +423,7 @@ while 1==1:
             
         
 print("Fin du programme \n")
-print("\tValeur brute : %s" % read_adc0)
-print("\tIntervale: %s" % interval)
+
 
 
 
