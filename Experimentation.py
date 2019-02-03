@@ -57,9 +57,9 @@ client.connect(BROKER_ADRESSE)
 def getTime(localTime = False) :   
     
     if localTime == True:
-        actTime = strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime(time.time()))
+        actTime = strftime("%a, %d %b %Y %H:%M:%S +0000", localtime(time()))
     else:
-        actTime = strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime(time.time()))
+        actTime = strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime(time()))
     
     return actTime
 
@@ -376,15 +376,13 @@ while True:
     # Publie la lecture sur le serveur
     
     mqtt_retour = client.publish(TOPIC,data_out)
- #   print("\tHeure %s" % getTime())
-    print("\tValeur de retour: %s" % mqtt_retour.rc)
-    print("\tValeur de succès: %s" % mqtt.MQTT_ERR_SUCCESS)
-    print("\tValeur objet de retour: %s" % mqtt_retour)
+    print("%s |\t\tValeur de retour: %s" % (getTime(), mqtt_retour.rc))
+    print("%s |\t\tValeur objet de retour: %s" % (getTime(), mqtt_retour))
     if mqtt_retour.rc != mqtt.MQTT_ERR_SUCCESS:
         # Si erreur tente de récupérer
         if not saveMQTTConnection(client):
- #               print("\tConnection perdue %s" % getTime())
-                 print("\tConnection perdue")
+                print("%s |\t\tConnection perdue" % getTime())
+ 
     #print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
 
 
