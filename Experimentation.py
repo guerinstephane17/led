@@ -4,7 +4,7 @@
 # Par:     SGu
 #
 from gpiozero import LED, Button
-from time import gmtime, strftime, time, sleep
+from time import gmtime, strftime, time, sleep, localtime
 
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
@@ -359,7 +359,7 @@ flash_led(dict_LED, CONST_MODE_FLASH_INIT)
 #while interval > CONST_INTERVAL_MINIMUM_SEC:
 
 while True:
-    print("\tOn attend le bouton ;-)")
+    print("\t\t ###### On attend le bouton ;-)#####")
     dict_BTN[CONST_BTN_NOM_LECTURE].wait_for_press()
     
     for key in dict_BALANCE.keys():
@@ -370,18 +370,18 @@ while True:
     ### Pour simuler tester une troisième balance on augmente la lecture de 28%
     #data[CONST_ADC_NOM_BALANCE_RECYCLAGE]=data[key]*1.28
         
-    print("\tValeurs du tableau data: %s " % data)
+    print("%s |\t\tValeurs du tableau data: %s " % (getTime(True), data))
     
     data_out=json.dumps(data)       # Converti en jason le data pour publier sur le serveur
     # Publie la lecture sur le serveur
     
     mqtt_retour = client.publish(TOPIC,data_out)
-    print("%s |\t\tValeur de retour: %s" % (getTime(), mqtt_retour.rc))
-    print("%s |\t\tValeur objet de retour: %s" % (getTime(), mqtt_retour))
+    print("%s |\t\tValeur de retour: %s" % (getTime(True), mqtt_retour.rc))
+    print("%s |\t\tValeur objet de retour: %s" % (getTime(True), mqtt_retour))
     if mqtt_retour.rc != mqtt.MQTT_ERR_SUCCESS:
         # Si erreur tente de récupérer
         if not saveMQTTConnection(client):
-                print("%s |\t\tConnection perdue" % getTime())
+                print("%s |\t\tConnection perdue" % getTime(True))
  
     #print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
 
