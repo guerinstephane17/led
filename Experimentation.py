@@ -175,7 +175,7 @@ CONST_ADC_PIN_BALANCE_RESIDU=0
 CONST_ADC_NOM_BALANCE_COMPOST="KG_COMPOST"
 CONST_ADC_PIN_BALANCE_COMPOST=1
 CONST_ADC_NOM_BALANCE_RECYCLAGE="KG_RECYCLAGE"
-CONST_ADC_PIN_BALANCE_RECYCLAGE=1
+CONST_ADC_PIN_BALANCE_RECYCLAGE=2
 
 #
 # Construit un tableau associatif des balances dans l'ordre souhaité
@@ -326,14 +326,6 @@ dict_BTN=dict()
 dict_BTN[CONST_BTN_NOM_LECTURE]=Button(CONST_BTN_NO_GPIO_LECTURE)
 print("Liste des boutons: %s" % dict_BTN)
 
-#lst_button=[]
-#lst_button.append(Button(CONST_NO_GPIO_BUTTON_1))
-#button=Button(CONST_NO_GPIO_BUTTON_1)
-
-
-
-
-
 
 #####
 #  Définition pour simuler la balance avec des gradateurs
@@ -376,7 +368,7 @@ while True:
         data[key]=readADC(dict_BALANCE[key], SPICLK, SPIMOSI, SPIMISO, SPICS)
         
     ### Pour simuler tester une troisième balance on augmente la lecture de 28%
-    data[CONST_ADC_NOM_BALANCE_RECYCLAGE]=data[key]*1.28
+    #data[CONST_ADC_NOM_BALANCE_RECYCLAGE]=data[key]*1.28
         
     print("\tValeurs du tableau data: %s " % data)
     
@@ -384,11 +376,16 @@ while True:
     # Publie la lecture sur le serveur
     
     mqtt_retour = client.publish(TOPIC,data_out)
+ #   print("\tHeure %s" % getTime())
     print("\tValeur de retour: %s" % mqtt_retour.rc)
-    #MQTT_ERR_SUCCESS
-    # Si erreur essai 5 fois avec un délai
-    # saveMQTTConnection(mqttConnection)
-    print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
+    print("\tValeur de succès: %s" % mqtt.MQTT_ERR_SUCCESS)
+    print("\tValeur objet de retour: %s" % mqtt_retour)
+    if mqtt_retour.rc != mqtt.MQTT_ERR_SUCCESS:
+        # Si erreur tente de récupérer
+        if not saveMQTTConnection(client):
+ #               print("\tConnection perdue %s" % getTime())
+                 print("\tConnection perdue")
+    #print("\tValeur de retour: %s" % client.publish(TOPIC,data_out))
 
 
     #if read_adc0 == -1 :
